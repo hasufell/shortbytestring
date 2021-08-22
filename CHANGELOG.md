@@ -1,4 +1,4 @@
-# Revision history for abstract-filepath
+# Revision history for shortbytestring
 
 ## 0.1.0.0 -- YYYY-mm-dd
 
