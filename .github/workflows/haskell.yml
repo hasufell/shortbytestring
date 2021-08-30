@@ -14,15 +14,29 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        ghc: ['8.0.2', '8.2.2', '8.4.4', '8.6.5', '8.8.4', '8.10.5']
+        ghc: ['8.0.2', '8.2.2', '8.4.4', '8.6.5', '8.8.4', '8.10.7']
         cabal: ['3.4.0.0']
 
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1.2.3
-      with:
-        ghc-version: ${{ matrix.ghc }}
-        cabal-version: ${{ matrix.cabal }}
+
+    - if: matrix.os == 'windows-latest'
+      name: Install ghcup on windows
+      run: Set-ExecutionPolicy Bypass -Scope Process -Force;[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;Invoke-Command -ScriptBlock ([ScriptBlock]::Create((Invoke-WebRequest https://www.haskell.org/ghcup/sh/bootstrap-haskell.ps1 -UseBasicParsing))) -ArgumentList $false,$true,$true,$false,$false,$false,$false,"C:\"
+
+    - if: matrix.os != 'windows-latest'
+      name: Install ghcup on non-windows
+      run: curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh
+
+    - if: matrix.os == 'windows-latest'
+      run: echo "/c/ghcup/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: Install ghc/cabal
+      run: |
+        ghcup install ghc ${{ matrix.ghc }}
+        ghcup install cabal ${{ matrix.cabal }}
+      shell: bash
 
     - name: create ~/.local/bin
       run: mkdir -p "$HOME/.local/bin"
@@ -41,7 +55,7 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
         restore-keys: |
           ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-
+          ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-al
           ${{ runner.os }}-${{ matrix.ghc }}-
           ${{ runner.os }}-
 
@@ -97,11 +111,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1.2
-      with:
-        enable-stack: true
-        stack-no-global: true
-        stack-version: ${{ matrix.stack }}
+
+    - if: matrix.os == 'windows-latest'
+      name: Install ghcup on windows
+      run: Set-ExecutionPolicy Bypass -Scope Process -Force;[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;Invoke-Command -ScriptBlock ([ScriptBlock]::Create((Invoke-WebRequest https://www.haskell.org/ghcup/sh/bootstrap-haskell.ps1 -UseBasicParsing))) -ArgumentList $false,$true,$true,$false,$false,$false,$false,"C:\"
+
+    - if: matrix.os != 'windows-latest'
+      name: Install ghcup on non-windows
+      run: curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh
+
+    - if: matrix.os == 'windows-latest'
+      run: echo "/c/ghcup/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: Install stack
+      run: ghcup install stack ${{ matrix.stack }}
 
     - name: Cache
       uses: actions/cache@v1
