@@ -20,11 +20,11 @@
 
 #ifdef WORD8
 module Properties.ByteString.Short (tests) where
-import Data.Word8 (isSpace)
+import Data.Word8 (isSpace, _nul)
 import qualified "shortbytestring" Data.ByteString.Short as B
 #else
 module Properties.ByteString.Short.Word16 (tests) where
-import Data.Word16 (isSpace)
+import Data.Word16 (isSpace, _nul)
 import qualified "shortbytestring" Data.ByteString.Short.Word16 as B
 #endif
 import "shortbytestring" Data.ByteString.Short (ShortByteString)
@@ -38,6 +38,7 @@ import Data.Semigroup
 import Data.Tuple
 import Test.Tasty
 import Test.Tasty.QuickCheck
+import Test.QuickCheck.Monadic
 import Text.Show.Functions ()
 
 #ifdef WORD16
@@ -396,6 +397,22 @@ tests =
   --, testProperty "unfoldr" $
   --  \n f (toElem -> a) -> B.unpack (B.take (fromIntegral n) (B.unfoldr (fmap (first toElem) . f) a)) ===
   --    take n (unfoldr (fmap (first toElem) . f) a)
+  --
+#ifdef WORD16
+  , testProperty "useAsCWString str packCWString == str" $
+    \x -> not (B.any (== _nul) x)
+      ==> monadicIO $ run (B.useAsCWString x B.packCWString >>= \x' -> pure (x === x'))
+  , testProperty "useAsCWStringLen str packCWStringLen == str" $
+    \x -> not (B.any (== _nul) x)
+      ==> monadicIO $ run (B.useAsCWStringLen x B.packCWStringLen >>= \x' -> pure (x === x'))
+#else
+  , testProperty "useAsCString str packCString == str" $
+    \x -> not (B.any (== _nul) x)
+      ==> monadicIO $ run (B.useAsCString x B.packCString >>= \x' -> pure (x === x'))
+  , testProperty "useAsCStringLen str packCStringLen == str" $
+    \x -> not (B.any (== _nul) x)
+      ==> monadicIO $ run (B.useAsCStringLen x B.packCStringLen >>= \x' -> pure (x === x'))
+#endif
   ]
 
 stripSuffix :: Eq a => [a] -> [a] -> Maybe [a]

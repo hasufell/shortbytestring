@@ -147,26 +147,9 @@ import Prelude hiding
     , takeWhile
     )
 
-import Data.ByteString.Short.Internal
-import "bytestring" Data.ByteString.Short
-    ( ShortByteString
-    , empty
-    , fromShort
-    , index
-#if MIN_VERSION_bytestring(0,11,0)
-    , indexMaybe
-    , (!?)
-#endif
-    , length
-    , null
-    , pack
-    , toShort
-    , unpack
-    )
 import "bytestring" Data.ByteString.Short.Internal
-    ( createFromPtr )
+import Data.ByteString.Short.Internal
 import Data.Word8
-
 
 import qualified "bytestring" Data.ByteString.Short as BS
 import qualified "bytestring" Data.ByteString.Short.Internal as BS
