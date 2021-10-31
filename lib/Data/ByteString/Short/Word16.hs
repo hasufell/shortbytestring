@@ -179,9 +179,7 @@ import Data.ByteString.Short
     , null
     )
 import GHC.Exts
-import GHC.Word
-import GHC.ST
-    ( ST (ST) )
+import GHC.ST ( ST )
 
 import qualified "bytestring" Data.ByteString.Short.Internal as BS
 import qualified Data.List as List
@@ -198,12 +196,12 @@ singleton = \w -> create 2 (\mba -> writeWord16Array mba 0 w)
 
 -- | /O(n)/. Convert a list into a 'ShortByteString'
 pack :: [Word16] -> ShortByteString
-pack = packBytes
+pack = packWord16
 
 
 -- | /O(n)/. Convert a 'ShortByteString' into a list.
 unpack :: ShortByteString -> [Word16]
-unpack = unpackBytes . assertEven
+unpack = unpackWord16 . assertEven
 
 
 -- ---------------------------------------------------------------------
@@ -378,7 +376,7 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 --
 unfoldr :: (a -> Maybe (Word16, a)) -> a -> ShortByteString
-unfoldr f x0 = packBytesRev $ go x0 mempty
+unfoldr f x0 = packWord16Rev $ go x0 mempty
  where
    go x words' = case f x of
                     Nothing -> words'
@@ -398,7 +396,7 @@ unfoldr f x0 = packBytesRev $ go x0 mempty
 -- > fst (unfoldrN n f s) == take n (unfoldr f s)
 --
 unfoldrN :: Int -> (a -> Maybe (Word16, a)) -> a -> (ShortByteString, Maybe a)
-unfoldrN i f x0 = first packBytesRev $ go (i - 1) x0 mempty
+unfoldrN i f x0 = first packWord16Rev $ go (i - 1) x0 mempty
  where
    go i' x words'
     | i' < 0     = (words', Just x)
@@ -777,67 +775,7 @@ findIndices k = \sbs ->
 -- --------------------------------------------------------------------
 -- Internal
 
--- | This isn't strictly Word16 array write. Instead it's two consecutive Word8 array
--- writes to avoid endianness issues due to primops doing automatic alignment based
--- on host platform. We want to always write LE to the byte array.
-writeWord16Array :: MBA s
-                 -> Int      -- ^ Word8 index (not Word16)
-                 -> Word16
-                 -> ST s ()
-writeWord16Array (MBA# mba#) (I# i#) (W16# w#) =
-  case encodeWord16LE# w# of
-    (# lsb#, msb# #) ->
-      (ST $ \s -> case writeWord8Array# mba# i# lsb# s of
-          s' -> (# s', () #)) >>
-      (ST $ \s -> case writeWord8Array# mba# (i# +# 1#) msb# s of
-          s' -> (# s', () #))
 
--- | This isn't strictly Word16 array read. Instead it's two Word8 array reads
--- to avoid endianness issues due to primops doing automatic alignment based
--- on host platform. We expect the byte array to be LE always.
-indexWord16Array :: BA
-                 -> Int      -- ^ Word8 index (not Word16)
-                 -> Word16
-indexWord16Array (BA# ba#) (I# i#) = 
-  case (# indexWord8Array# ba# i#, indexWord8Array# ba# (i# +# 1#) #) of
-    (# lsb#, msb# #) -> W16# ((decodeWord16LE# (# lsb#, msb# #)))
-
-
-packBytes :: [Word16] -> ShortByteString
-packBytes cs = packLenBytes (List.length cs) cs
-
-packLenBytes :: Int -> [Word16] -> ShortByteString
-packLenBytes len ws0 =
-    create (len * 2) (\mba -> go mba 0 ws0)
-  where
-    go :: MBA s -> Int -> [Word16] -> ST s ()
-    go !_   !_ []     = return ()
-    go !mba !i (w:ws) = do
-      writeWord16Array mba i w
-      go mba (i+2) ws
-
-packBytesRev :: [Word16] -> ShortByteString
-packBytesRev cs = packLenBytesRev ((List.length cs) * 2) cs
-
-packLenBytesRev :: Int -> [Word16] -> ShortByteString
-packLenBytesRev len ws0 =
-    create len (\mba -> go mba len ws0)
-  where
-    go :: MBA s -> Int -> [Word16] -> ST s ()
-    go !_   !_ []     = return ()
-    go !mba !i (w:ws) = do
-      writeWord16Array mba (i - 2) w
-      go mba (i - 2) ws
-
-
-unpackBytes :: ShortByteString -> [Word16]
-unpackBytes sbs = go len []
-  where
-    len = BS.length sbs
-    go !i !acc
-      | i < 1     = acc
-      | otherwise = let !w = indexWord16Array (asBA sbs) (i - 2)
-                    in go (i - 2) (w:acc)
 
 -- Returns the index of the first match or the length of the whole
 -- bytestring if nothing matched.
@@ -872,13 +810,4 @@ assertEven sbs@(BS.SBS barr#)
   | otherwise = error ("Uneven number of bytes: " <> show (BS.length sbs) <> ". This is not a Word16 bytestream.")
 
 
-
-encodeWord16LE# :: Word# -- ^ Word16
-                -> (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
-encodeWord16LE# x# = (# (x# `and#` int2Word# 0xff#)
-                     ,  ((x# `and#` int2Word# 0xff00#) `shiftRL#` 8#) #)
-
-decodeWord16LE# :: (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
-                -> Word#              -- ^ Word16
-decodeWord16LE# (# lsb#, msb# #) = ((msb# `shiftL#` 8#) `or#` lsb#)
 
