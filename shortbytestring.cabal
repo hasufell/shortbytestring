@@ -40,7 +40,7 @@ library
     , exceptions        ^>=0.10
     , primitive         ^>=0.7
     , template-haskell  >=2.10     && <2.20
-    , text              >=1.2.3.0  && <1.2.6
+    , text              >=1.2.3.0  && <2.1
     , word16
     , word8             ^>=0.1
 
