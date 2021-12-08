@@ -268,8 +268,9 @@ indexWord16Array (BA# ba#) (I# i#) =
   case (# indexWord8Array# ba# i#, indexWord8Array# ba# (i# +# 1#) #) of
     (# lsb#, msb# #) -> W16# ((decodeWord16LE# (# lsb#, msb# #)))
 
+#if !MIN_VERSION_base(4,16,0)
 
-encodeWord16LE# :: Word# -- ^ Word16
+encodeWord16LE# :: Word#              -- ^ Word16
                 -> (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
 encodeWord16LE# x# = (# (x# `and#` int2Word# 0xff#)
                      ,  ((x# `and#` int2Word# 0xff00#) `shiftRL#` 8#) #)
@@ -278,4 +279,19 @@ decodeWord16LE# :: (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
                 -> Word#              -- ^ Word16
 decodeWord16LE# (# lsb#, msb# #) = ((msb# `shiftL#` 8#) `or#` lsb#)
 
+#else
 
+encodeWord16LE# :: Word16#              -- ^ Word16
+                -> (# Word8#, Word8# #) -- ^ Word8 (LSB, MSB)
+encodeWord16LE# x# = (# word16ToWord8# x#
+                     ,  word16ToWord8# (x# `uncheckedShiftRLWord16#` 8#) #)
+  where
+    word16ToWord8# y = wordToWord8# (word16ToWord# y)
+
+decodeWord16LE# :: (# Word8#, Word8# #) -- ^ Word8 (LSB, MSB)
+                -> Word16#              -- ^ Word16
+decodeWord16LE# (# lsb#, msb# #) = ((word8ToWord16# msb# `uncheckedShiftLWord16#` 8#) `orWord16#` word8ToWord16# lsb#)
+  where
+    word8ToWord16# y = wordToWord16# (word8ToWord# y)
+
+#endif

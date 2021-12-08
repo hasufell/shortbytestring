@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Data.ByteString.Short.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8') where
@@ -15,9 +16,13 @@ import Data.Text.Internal.Fusion.Types
 import Data.Text.Internal.Fusion.Size
     ( maxSize )
 import Data.Text.Internal.Unsafe.Char
+#if MIN_VERSION_text(2,0,0)
+    ( unsafeChr16, unsafeChr8 )
+#else
     ( unsafeChr, unsafeChr8 )
-import Data.Text.Internal.Unsafe.Shift
-    ( shiftL, shiftR )
+#endif
+import Data.Bits
+    ( unsafeShiftL, unsafeShiftR )
 import Data.Word
     ( Word16, Word8 )
 
@@ -31,6 +36,9 @@ import qualified Data.Text.Internal.Encoding.Utf8 as U8
 import GHC.IO
     ( unsafeDupablePerformIO )
 
+#if !MIN_VERSION_text(2,0,0)
+unsafeChr16 = unsafeChr
+#endif
 
 -- | /O(n)/ Convert a 'ByteString' into a 'Stream Char', using UTF-8
 -- encoding.
@@ -56,18 +64,18 @@ streamUtf8 onErr bs = Stream next 0 (maxSize l)
 -- | /O(n)/ Convert a 'ShortByteString' into a 'Stream Char', using little
 -- endian UTF-16 encoding.
 streamUtf16LE :: OnDecodeError -> ShortByteString -> Stream Char
-streamUtf16LE onErr bs = Stream next 0 (maxSize (l `shiftR` 1))
+streamUtf16LE onErr bs = Stream next 0 (maxSize (l `unsafeShiftR` 1))
     where
       l = BS.length bs
       {-# INLINE next #-}
       next i
           | i >= l                         = Done
-          | i+1 < l && U16.validate1 x1    = Yield (unsafeChr x1) (i+2)
+          | i+1 < l && U16.validate1 x1    = Yield (unsafeChr16 x1) (i+2)
           | i+3 < l && U16.validate2 x1 x2 = Yield (U16.chr2 x1 x2) (i+4)
           | otherwise = decodeError "streamUtf16LE" "UTF-16LE" onErr Nothing (i+1)
           where
-            x1    = idx i       + (idx (i + 1) `shiftL` 8)
-            x2    = idx (i + 2) + (idx (i + 3) `shiftL` 8)
+            x1    = idx i       + (idx (i + 1) `unsafeShiftL` 8)
+            x2    = idx (i + 2) + (idx (i + 3) `unsafeShiftL` 8)
             idx = fromIntegral . BS.index bs :: Int -> Word16
 {-# INLINE [0] streamUtf16LE #-}
 

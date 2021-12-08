@@ -201,7 +201,7 @@ snoc :: ShortByteString -> Word8 -> ShortByteString
 snoc = \sbs c -> let l = BS.length sbs
                      nl = l + 1
   in create nl $ \mba -> do
-      copyByteArray (asBA sbs) 0 mba 0 nl
+      copyByteArray (asBA sbs) 0 mba 0 l
       writeWord8Array mba l c
 {-# INLINE snoc #-}
 
@@ -209,8 +209,9 @@ snoc = \sbs c -> let l = BS.length sbs
 --
 -- Note: copies the entire byte array
 cons :: Word8 -> ShortByteString -> ShortByteString
-cons c = \sbs -> let l = BS.length sbs + 1
-  in create l $ \mba -> do
+cons c = \sbs -> let l = BS.length sbs
+                     nl = l + 1
+  in create nl $ \mba -> do
       writeWord8Array mba 0 c
       copyByteArray (asBA sbs) 0 mba 1 l
 {-# INLINE cons #-}
