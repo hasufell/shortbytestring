@@ -221,7 +221,7 @@ snoc :: ShortByteString -> Word16 -> ShortByteString
 snoc = \(assertEven -> sbs) c -> let l = BS.length sbs
                                      nl = l + 2
   in create nl $ \mba -> do
-      copyByteArray (asBA sbs) 0 mba 0 nl
+      copyByteArray (asBA sbs) 0 mba 0 l
       writeWord16Array mba l c
 {-# INLINE snoc #-}
 
@@ -233,7 +233,7 @@ cons c = \(assertEven -> sbs) -> let l = BS.length sbs
                                      nl = l + 2
   in create nl $ \mba -> do
       writeWord16Array mba 0 c
-      copyByteArray (asBA sbs) 0 mba 2 nl
+      copyByteArray (asBA sbs) 0 mba 2 l
 {-# INLINE cons #-}
 
 -- | /O(1)/ Extract the last element of a ShortByteString, which must be finite and at least one Word16.
