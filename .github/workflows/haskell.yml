@@ -67,7 +67,7 @@ jobs:
       run: cabal test all
       shell: bash
 
-    - if: matrix.os == 'ubuntu-latest'
+    - if: matrix.os == 'ubuntu-latest' && matrix.ghc != '8.0.2' && matrix.ghc != '8.2.2'
       name: Run doctests
       run: cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings -XPackageImports
       shell: bash
